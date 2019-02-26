@@ -10,22 +10,29 @@ import Cocoa
 
 
 open class USBDeviceMonitor {
-    public let vp:[USBMonitorData]
+    private let deviceMatches:[NSDictionary]
 
-    public init(_ vp:[USBMonitorData]) {
-        self.vp = vp
+    public init(deviceMatches:[NSDictionary]) {
+        self.deviceMatches = deviceMatches
+    }
+
+    public convenience init(_ vp:[HIDMonitorData]) {
+        var deviceMatches = [NSDictionary]()
+        for entry in vp {
+            let dict = IOServiceMatching(kIOUSBDeviceClassName) as NSMutableDictionary
+            dict[kIOHIDProductIDKey] = entry.productId
+            dict[kIOHIDVendorIDKey] = entry.vendorId
+            deviceMatches.append(dict)
+        }
+        self.init(deviceMatches:  deviceMatches)
     }
         
     @objc open func start() {
-        for vp in self.vp {
+        for matchingDict in self.deviceMatches {
             var matchedIterator:io_iterator_t = 0
             var removalIterator:io_iterator_t = 0
             let notifyPort:IONotificationPortRef = IONotificationPortCreate(kIOMasterPortDefault)
             IONotificationPortSetDispatchQueue(notifyPort, DispatchQueue(label: "IODetector"))
-            let matchingDict = IOServiceMatching(kIOUSBDeviceClassName)
-                as NSMutableDictionary
-            matchingDict[kUSBVendorID] = NSNumber(value: vp.vendorId)
-            matchingDict[kUSBProductID] = NSNumber(value: vp.productId)
 
             let matchingCallback:IOServiceMatchingCallback = { (userData, iterator) in
                 // Convert self to a void pointer, store that in the context, and convert it
